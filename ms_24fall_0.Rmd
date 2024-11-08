@@ -1,0 +1,133 @@
+---
+title: "第一次作业"
+author: "刘若水"
+date: "2024-10-08"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+一、读取文件
+```{r}
+library(readxl)
+data<-read_excel("D:\\mycodelife\\workshop\\course_task\\Bicycle Inventory.xlsx")
+```
+
+二、数据概述
+
+```{r}
+library(psych)
+describe(data)
+```
+注意到，根据表中数据关系，$inventory value=purchase cost\times quantity$，而selling price没有与其他数据关联，cumulative作为percentage的逐行累加。
+
+三、描述性统计
+（一）对数据进行简单描述
+1.绘制扇形图
+由于数据中有零值，因此需要处理后才能绘制饼状图
+```{r}
+non_zero_index <- data$`inventory value` > 0
+inventory_value_filtered <- data$`inventory value`[non_zero_index]
+inventory_value_filtered
+```
+获取非零元素后进行绘制：
+```{r}
+pie(inventory_value_filtered, labels = data$`Product Name`, main = "Percentage of inventory value on different products", col = rainbow(length(inventory_value_filtered)))
+```
+
+（二）按照product category和supplier进行划分
+```{r}
+boxplot(data$'inventory value'~data$'Product Category', 
+        main = "Product Category of inventory value", 
+        xlab ="",
+        ylab = "inventory value")
+```
+该boxplot反映了不同product category下inventory value的取值
+```{r}
+boxplot(data$'Purchase Cost'~data$'Product Category', 
+        main = "Product Category of Purchase Cost", 
+        xlab ="",
+        ylab = "Purchase Cost")
+```
+该boxplot反映了不同product category下purchase cost的取值
+```{r}
+library(ggplot2)
+ggplot(data, aes(x = Supplier, y = `inventory value`, fill = `Product Category`)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Inventory Value by Supplier and Product Category",
+       x = "Supplier",
+       y = "Inventory Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set3")
+```
+该图反映了不同product category,supplier下的inventory value。
+
+四、回归分析
+
+1.研究成本是否和售价高低存在关联
+
+```{r}
+model_multi <- lm(data$`Selling Price` ~ data$`Purchase Cost`)
+
+summary(model_multi)
+```
+
+回归表示：
+残差（Residuals）：
+Min：-37.755，1Q（第一四分位数）：-4.430，Median（中位数）：-0.003，3Q（第三四分位数）：8.493，Max：28.796。
+这些残差值代表实际售价和模型预测值之间的差异，范围从大约 -37.755 到 28.796。理想情况下，残差应尽可能接近零，表明模型拟合效果较好。
+系数（Coefficients）：
+
+(Intercept) 截距：8.01597，这意味着当购买成本为0时，模型预测的销售价格为8.02（这个值在实际情境下可能没有太大实际意义）。
+Purchase Cost 系数：1.34475，表示购买成本每增加1个单位，销售价格预计增加约1.34个单位。
+标准误差 (Std. Error)：表示系数的不确定性。
+截距的标准误差：5.64885。
+购买成本系数的标准误差：0.02016，较小的标准误差表明这个估计比较精确。
+t 值：t值为66.711，表示购买成本系数的估计值远离零，表明其对售价的影响非常显著。
+p 值 (Pr(>|t|))：购买成本的p值小于2e-16，表明它在统计上非常显著，具有高度相关性。
+模型的整体拟合优度：
+
+残差标准误差 (Residual standard error)：15.52，这表示模型的残差有15.52个单位的标准误差，残差越小模型拟合越好。
+Multiple R-squared：0.9951，表明购买成本解释了99.51%的销售价格的变异，模型拟合度非常好。
+Adjusted R-squared：0.9949，与Multiple R-squared非常接近，这表明模型的拟合度依然较高，即使考虑到自变量的个数。
+F统计量 (F-statistic)：4450，且p值 < 2.2e-16，这表明整个模型非常显著。
+总结：
+这个模型表明，购买成本对销售价格有非常强的正向影响，且这种关系具有高度的统计显著性。
+购买成本可以很好地解释销售价格的变化，R平方值接近1，表示模型的拟合度非常高。
+由于残差较小，且p值极小，可以认为模型在解释数据时表现得非常好。
+
+2.进行分组回归，不同产品的售价和价格的关系
+首先将非数值型变量转化为因子
+```{r}
+data$supplier <- as.factor(data$Supplier)
+data$category <- as.factor(data$`Product Category`)
+```
+构建回归模型
+```{r}
+model <- lm(data$`Selling Price` ~ data$`Purchase Cost` + supplier + category, data = data)
+
+# 查看回归结果
+summary(model)
+```
+1. 系数解读：
+(Intercept)：截距（12.15665）表示当成本和所有因子变量的值为零时，售价的估计值。然而，因子变量（如供应商和类别）不可能为零，它们表示的是相对于基准类别的相对影响。
+
+data$Purchase Cost（成本的回归系数）：估计值为1.32657，表示当成本每增加 1 个单位，售价预计增加约 1.33 个单位，并且这个变量显著（p值为 5.29e-13，远小于 0.05）。这意味着成本对售价有强烈的正向影响。
+
+supplier 和 category 的系数：这些系数是相对于基准类别（默认第一个类别）的影响。我们可以看到：
+
+supplier 的 p 值：所有供应商的 p 值都大于 0.05（如 Bike-One, Run-Up Bikes 等），意味着供应商对售价的影响不显著。
+category 的 p 值：所有产品类别的 p 值也都大于 0.05，意味着产品类别对售价的影响不显著。
+2. 统计显著性：
+星号标记（*）**：通常用于标记显著性水平。
+data$Purchase Cost 的 p 值非常小（< 0.001），有三个星号（***），说明成本对售价有显著的影响。
+其他变量（如供应商和类别）没有显著性标记，说明这些控制变量没有显著影响。
+3. R-squared 值：
+Multiple R-squared: 0.9969 和 Adjusted R-squared: 0.9949：表示模型能够很好地解释数据的变异，99.69% 的售价波动可以由成本、供应商和类别共同解释。这是非常高的 R-squared 值，说明你的模型拟合度很好。
+4. F-statistic：
+F-statistic 值为 498.9，p 值非常小（5.636e-16），表明整个模型在统计上是显著的，至少有一个解释变量对因变量（售价）有显著影响。
+结论：
+成本对售价有显著的正向影响，随着成本增加，售价也会增加。
+供应商和产品类别在这个模型中没有显著影响（p 值大于 0.05）。
+模型的解释力很高（R-squared 值接近 1），说明你选取的变量对售价有很强的解释力。

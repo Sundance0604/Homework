@@ -1,0 +1,140 @@
+---
+title: "DMP_H2"
+author: "Sundance"
+date: "2024-11-05"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r warning=FALSE,message=FALSE,error=FALSE}
+library(brms)
+library(dplyr)
+library(ggplot2)
+library(bayesplot)
+library(psych)
+library(car)
+library(lmtest)
+library(MASS)
+```
+一、描述性统计
+```{r}
+h2_data <- read.csv("D:\\mycodelife\\workshop\\course_task\\Salary Data.csv")
+```
+检视数据
+```{r}
+summary(h2_data)
+```
+
+```{r}
+describe(h2_data)
+```
+
+二、绘制因变量和自变量的散点图
+```{r}
+pairs(h2_data, main = "Pairwise Scatter Plots")
+```
+该图能反映Current Salary与其他变量的关联
+
+三、给出模型形式
+
+1.构建模型
+```{r}
+model <- lm(h2_data$Current.Salary ~ h2_data$Beginning.Salary + h2_data$Previous.Experience + h2_data$Education, data = h2_data)
+```
+检视模型
+```{r}
+summary(model)
+```
+2.是否满足Gauss-Markov假设
+
+（1）检查线性性是否成立
+```{r}
+# 绘制残差图
+plot(model$fitted.values, model$residuals, main = "Residual Plot", xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+
+```
+如图，图中残差在 0 附近随机分布，则线性性假设可能成立。
+
+（2）检查是否存在多重共线性
+```{r}
+vif(model)
+```
+VIF大于1且没有超过5，说明具有相关性且不存在多重共线性
+
+（3）检查同方差性
+```{r}
+bptest(model)
+```
+p>0.05，可能满足同方差假设
+
+（4）检查残差的独立性
+```{r}
+dwtest(model)
+```
+
+残差偏离2，可能存在残差相关性
+
+（5）残差的正态性
+```{r}
+shapiro.test(model$residuals)
+```
+
+p<0.05，说明残差不满足正态性
+
+综上所述，不满足Gauss-Markov假设，因此OLS估计是有偏的，需要采取其他估计
+
+四、采用Robust回归
+
+前文假定误差协方差矩阵满足$\sigma^2I$，但是经过检验可能为$\sigma^2\Sigma$，因此需要采用其他估计方法。
+
+1.M估计
+
+M估计通过调整回归系数估计的损失函数，使模型对离群点不敏感。常见的损失函数包括Huber损失（对小残差使用平方惩罚，对大残差使用线性惩罚）和Tukey损失。
+```{r}
+model_rlm <- rlm(h2_data$Current.Salary ~ h2_data$Beginning.Salary + h2_data$Previous.Experience + h2_data$Education, psi = psi.huber)  # 使用Huber损失
+summary(model_rlm)
+```
+
+显著性不明显。比较其与OLS的区别
+
+```{r}
+# 绘制残差图比较
+par(mfrow = c(1, 2))
+plot(resid(model), main = "OLS Residuals")
+plot(resid(model_rlm), main = "Robust Regression Residuals")
+```
+
+可见，没有明显的区别。
+
+2.加权最小二乘回归
+
+```{r}
+weights <- 1 / abs(h2_data$Current.Salary - predict(lm(h2_data$Current.Salary ~ h2_data$Beginning.Salary + h2_data$Previous.Experience + h2_data$Education))) # 权重示例
+
+# 使用lm()函数指定权重
+model_wls <- lm(h2_data$Current.Salary ~ h2_data$Beginning.Salary + h2_data$Previous.Experience + h2_data$Education, weights = weights)
+summary(model_wls)
+```
+
+效果非常好，所有系数均显著。说明采用加权最小二乘回归效果较好。
+
+五、采用逐步回归
+
+1.前向选择
+```{r}
+null_model <- lm(h2_data$Current.Salary ~ 1, data = h2_data)
+stepwise_model_forward <- step(model, 
+                               scope = list(lower = null_model, upper = model), 
+                               direction = "forward")
+summary(stepwise_model_forward)
+```
+
+2.后向选择
+
+```{r}
+stepwise_model_backward <- step(model, direction = "backward")
+summary(stepwise_model_backward)
+```
+由于变量较少，且本身不具有显著的多重共线性，因此采用逐步回归效果较差，和直接使用OLS没有显著区别。
