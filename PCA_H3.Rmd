@@ -1,0 +1,146 @@
+---
+title: "PCA"
+author: "R.S Liu"
+date: "2024-11-26"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+一、加载包
+
+```{r warning=FALSE,message=FALSE,error=FALSE}
+library(brms)
+library(dplyr)
+library(ggplot2)
+library(bayesplot)
+library(psych)
+library(car)
+library(lmtest)
+library(MASS)
+```
+
+二、读取数据
+
+```{r}
+library(readxl)
+PCA_data <- read_excel("D:\\mycodelife\\workshop\\course_task\\arteriosclerosis.xlsx")
+```
+
+三、检视数据
+
+```{r}
+summary(PCA_data)
+```
+
+```{r}
+describe(PCA_data)
+```
+
+四、计算协方差矩阵
+
+（一）查看数据结构
+
+```{r}
+str(PCA_data)
+```
+
+需要把数字部分的chr类转为数值型。用R语言实现太麻烦，直接在原excel调就行了
+
+（二）计算协方差矩阵
+
+要把因变量剔除
+
+```{r}
+library(dplyr)
+X <- PCA_data %>% select(-y1)  # 提取自变量
+Y <- PCA_data$y1              # 提取因变量
+X
+```
+
+```{r}
+PCA_X <- cor(X)
+PCA_X
+```
+
+五、求协方差矩阵的特征值和主成分载荷
+
+不可把协方差矩阵代入，否则后续的计算以及主成分回归是错误的！
+
+```{r}
+PCA=princomp(X,scale.=TRUE) 
+PCA
+```
+
+```{r}
+summary(PCA)
+```
+
+注意到，主成分对应的方差依次减少
+
+六、确定主成分
+
+```{r}
+screeplot(PCA,type="lines")
+```
+
+注意到，前两个变量解释了大部分信息
+
+七、计算主成分得分并绘图
+
+```{r}
+PCA$scores[,1:2] 
+```
+
+绘图
+
+```{r}
+biplot(PCA)
+
+```
+
+每个箭头代表一个原始变量。
+
+箭头的方向和长度表示该变量对主成分的贡献（载荷）。箭头越长，说明该变量对主成分的解释力越强。
+
+箭头的方向表明该变量在主成分空间中的投影方向。两个箭头夹角小，表示对应的变量高度相关。
+
+八、进行主成分回归
+
+注意，采用princomp提取应当为scores，而prcomp提取应当为X
+
+```{r}
+principal_components <- as.data.frame(PCA$scores[, 1:2])
+principal_components
+```
+
+合并因变量
+
+```{r}
+data_for_regression <- cbind(principal_components, y1 = Y)
+data_for_regression
+```
+
+进行主成分回归
+
+```{r}
+pcr_model <- lm(y1 ~ ., data = data_for_regression)  # 以主成分为自变量
+summary(pcr_model)
+```
+
+再和OLS回归模型对比
+
+```{r}
+ols_modek <- lm(y1 ~ ., data=PCA_data)
+summary(ols_modek)
+```
+
+主成分分析的结果图表明，对于前两个主成分，第一、二个特征贡献值最大，而再OLS中第一、二个特征贡献最大。第n主成分是一个线性组合，它是基于原数据中所有特征（变量）的加权和生成的。它的方向是使得变换后的数据在这个方向上的方差最大化，同时与之前的主成分保持正交（无相关性）。
+
+可以通过查看载荷矩阵证明这一点
+
+```{r}
+loadings_matrix <- PCA$loadings
+loadings_matrix
+```

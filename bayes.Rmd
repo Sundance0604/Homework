@@ -1,0 +1,144 @@
+---
+title: "Bayes"
+author: "刘若水"
+date: "2024-11-03"
+output: html_document
+---
+一、第五题
+1.载入贝叶斯统计相关的包
+```{r warning=FALSE,message=FALSE,error=FALSE}
+library(brms)
+library(dplyr)
+library(ggplot2)
+library(bayesplot)
+library(psych)
+```
+2.模拟数据，此处对$\mu$将$N(0,1.48^2)$作为先验分布。由于文中未说明$\sigma$的先验情况，因此选择inverse-Gamma(3,2)作为先验分布。
+```{r results='hide'}
+library(brms)
+
+# 设置数据
+data_list <- data.frame(
+  y = rnorm(100, mean = 0, sd = 2)  # 随机生成一些示例数据
+)
+
+# 定义先验分布
+priors <- c(
+  prior(normal(0, 1.48), class = "Intercept"),  # \mu 的先验
+  prior(inv_gamma(3, 2), class = "sigma")       # \sigma 的逆伽马先验
+)
+
+# 拟合模型
+fit <- brm(
+  y ~ 1,                   
+  data = data_list,
+  prior = priors,
+  family = gaussian()      
+)
+
+```
+检视结果
+```{r}
+summary(fit)
+```
+
+3.绘制选取$N(0,1.48^2)$为先验分布时的后验分布概率密度图。
+```{r}
+# 提取后验样本中的 mu （截距）参数
+posterior_mu <- as.data.frame(posterior_samples(fit, pars = "b_Intercept"))
+
+# 创建 mu 的先验分布样本
+set.seed(123)
+prior_mu <- data.frame(mu = rnorm(1000, mean = 0, sd = 1.48))  # normal(0, 1.48)
+
+# 绘制先验和后验的密度图
+ggplot() +
+  geom_density(data = prior_mu, aes(x = mu), color = "blue", fill = "blue", alpha = 0.3) +
+  geom_density(data = posterior_mu, aes(x = b_Intercept), color = "red", fill = "red", alpha = 0.3) +
+  labs(title = "Prior vs Posterior Distribution of Mu in Normal",
+       x = "Mu",
+       y = "Density") +
+  theme_minimal() +
+  scale_fill_manual(name = "Distribution", values = c("Prior" = "blue", "Posterior" = "red")) +
+  theme(legend.position = "top")
+
+```
+同理，选择Cauchy(0,1)作为先验分布时有如下结果
+```{r results='hide'}
+  
+# 定义先验分布
+cauchy_priors <- c(
+  prior(cauchy(0, 1), class = "Intercept"),  # \mu 的先验
+  prior(inv_gamma(3, 2), class = "sigma")       # \sigma 的逆伽马先验
+)
+
+# 拟合模型
+fit_cauchy <- brm(
+  y ~ 1,                   
+  data = data_list,
+  prior = cauchy_priors,
+  family = gaussian()      
+)
+
+```
+检视结果
+```{r}
+summary(fit_cauchy)
+```
+
+绘制先验与后验概率密度函数图
+```{r}
+# 提取后验样本中的 mu （截距）参数
+posterior_mu <- as.data.frame(posterior_samples(fit_cauchy, pars = "b_Intercept"))
+
+# 创建 mu 的先验分布样本
+set.seed(123)
+prior_mu <- data.frame(mu = rcauchy(1000))  # cauchy(0, 1)
+
+# 绘制先验和后验的密度图
+ggplot() +
+  geom_density(data = prior_mu, aes(x = mu), color = "blue", fill = "blue", alpha = 0.3) +
+  geom_density(data = posterior_mu, aes(x = b_Intercept), color = "red", fill = "red", alpha = 0.3) +
+  labs(title = "Prior vs Posterior Distribution of Mu in Cauchy",
+       x = "Mu",
+       y = "Density") +
+  coord_cartesian(xlim = c(-5, 5))+
+  theme_minimal() +
+  scale_fill_manual(name = "Distribution", values = c("Prior" = "blue", "Posterior" = "red")) +
+  theme(legend.position = "top")
+```
+显然，两幅图尽管在形状上一致，但尺度和参数都有显著的差别。在不设置xlim时，Cauchy分布作为先验分布时x轴接近100，反映了Cauchy分布的固有性质。
+二、第九题
+```{r}
+
+temperature_intervals <- c("25~26", "26~27", "27~28", "28~29", "29~30", "30~31")
+probabilities <- c(0.10, 0.15, 0.25, 0.30, 0.15, 0.05)
+
+
+barplot(probabilities,
+        names.arg = temperature_intervals,
+        xlab = "温度区间 (°C)",
+        ylab = "主观概率",
+        main = "明天室外最高温度的概率分布",
+        col = "skyblue")
+
+```
+三、第十题
+```{r}
+ftball <- readLines("D:\\mycodelife\\workshop\\course_task\\football.txt")
+ftball
+```
+
+```{r}
+summary(ftball)
+```
+需要转为数值型。计算如下：
+```{r}
+ftball<-as.numeric(ftball)
+describe(ftball)
+```
+绘制散点图
+```{r}
+plot(ftball)
+```
+
