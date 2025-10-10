@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>SQLite 数据浏览 & LLM 分析面板</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SQLite 数据浏览 & LLM 分析面板</h1>
+      <div>
+        <label>
+          <input type="checkbox" id="demoMode" checked />
+          演示模式（无后端/LLM）
+        </label>
+        <button id="reloadBtn">重新加载</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="tables">
+        <h2>数据表</h2>
+        <div id="tables"></div>
+      </section>
+
+      <section class="data">
+        <h2>数据预览</h2>
+        <div class="controls">
+          <label>显示行数 <input type="number" id="limit" value="100" min="10" max="1000"></label>
+          <button id="exportBtn">导出 CSV</button>
+        </div>
+        <div id="dataContainer"></div>
+      </section>
+
+      <section class="analysis">
+        <h2>分析设置</h2>
+        <textarea id="prompt" rows="6">
+请根据数据做一个简要分析，总结关键指标、异常值、和可能的业务含义。
+        </textarea>
+        <button id="analyzeBtn">调用 LLM 分析</button>
+        <pre id="analysisResult">暂无结果</pre>
+      </section>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
