@@ -10,7 +10,7 @@ public class SJF {
         PriorityQueue<Proc> ready = new PriorityQueue<>(Comparator.comparingDouble(p -> p.run)); // 按运行时间排序
 
         int i = 0;
-        double time = 0.0;
+        int time = 0;
 
         while (i < procs.size() || !ready.isEmpty()) {
             // 将所有已到达的进程放入 ready 队列

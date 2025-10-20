@@ -6,7 +6,7 @@ public class FCFS {
         // FCFS：按提交时间排序
         procs.sort(Comparator.comparingDouble(p -> p.submit));
 
-        double time = 0.0;
+        int time = 0;
         // 计算每个进程的开始时间、结束时间等
         for (Proc p : procs) {
             p.start = Math.max(time, p.submit);
