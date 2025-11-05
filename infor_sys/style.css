@@ -61,3 +61,19 @@ pre {
   border-radius: 8px;
   white-space: pre-wrap;
 }
+.llm-results {
+  margin-top: 1.5em;
+  padding-top: 1em;
+  border-top: 2px solid #ccc;
+}
+.llm-results table {
+  margin-top: 0.5em;
+  border-collapse: collapse;
+  width: 100%;
+}
+.llm-results th,
+.llm-results td {
+  border: 1px solid #ddd;
+  padding: 0.4em;
+  text-align: left;
+}

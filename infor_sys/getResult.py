@@ -121,91 +121,70 @@ def get_task_type(text):
 
     # 返回布尔值
     return result.upper()  
-def getAnalysis(text, data):
-    """
-    进行数据分析，基于用户的分析需求和 SQL 查询结果。
+def getTextAnalysis(text, data):
     
-    参数：
-        text (str): 用户的分析需求。
-        data (dict): 后端返回的数据，包含 `sql`, `columns`, `rows`，格式如：
-                     {
-                         "sql": "SELECT * FROM users WHERE age > 30",
-                         "columns": ["id", "name", "age", "city"],
-                         "rows": [
-                             [1, "Alice", 32, "Shanghai"],
-                             [2, "Bob", 40, "Beijing"],
-                             [3, "Carol", 35, "Shenzhen"]
-                         ],
-                         "row_count": 3
-                     }
+    sql_query = data.get("sql")
+    columns = data.get("columns")
+    rows = data.get("rows")
+    # 纯文字分析任务（描述性分析）
+    response = client.chat.completions.create(
+        model="deepseek-chat",  # 或使用其他合适的模型
+        messages=[
+            {
+                "role": "system", 
+                "content": f"""
+                    你是一个数据分析专家，下面是数据的内容，列名为：{columns}，数据行为：{rows}。
+                    请根据这些需求进行描述性分析，并提供结果。
+                    分析的结果需为文本，不包含任何代码、数学公式，只需要对数据进行简单描述。
+                """
+            },
+            {
+                "role": "user", 
+                "content": f"用户的分析需求是：{text}。请根据这些需求生成相应的分析结果，2000字以内。"
+            }
+        ],
+        temperature=0.1,
+        max_tokens=2500  # 增加 token 以确保生成足够的分析结果
+    )
+    
+    result = response.choices[0].message.content.strip()
+    return result
+    # 判断任务类型（回归分析或其他）
 
-    返回：
-        str: 分析结果（回归分析结果或文字分析）。
-    """
+def getVariableList(text, data):
 
     sql_query = data.get("sql")
     columns = data.get("columns")
     rows = data.get("rows")
-    
-    # 判断任务类型（回归分析或其他）
-    task_type = get_task_type(text)
-    print(f"Determined task type: {task_type}")
-    if task_type != 'TEXT':    
         # 回归分析任务
-        response = client.chat.completions.create(
-            model="deepseek-chat",  # 或使用其他合适的模型
-            messages=[
-                {
-                    "role": "system", 
-                    "content": f"""
-                        你是一个数据分析专家，下面是数据的内容，列名为：{columns}，数据行为：{rows}。
-                        用户将提供与数据分析相关的需求，
-                        请严格按照以下格式返回一个单行 JSON 字符串，确保没有换行符（\\n）和额外空格： 
-                        {{"predictor": "因变量", "features": ["自变量1", "自变量2", ...]}}。
-                        不要在字典内加入任何额外的换行符或空格。
-                        仅返回字典内容，不需要任何注释、解释或其他多余内容。
-                    """
-                },
-                {
-                    "role": "user", 
-                    "content": f"用户的分析需求是：{text}。请根据这些需求生成相应的变量字典。如果是回归分析类任务，请也把控制变量的一并输出到字典中，解释变量在前，控制变量在后。"
-                }
-            ],
-            temperature=0.1,
-            max_tokens=2500  # 增加 token 以确保生成足够多的 SQL 查询
-        )
-        
-        result = response.choices[0].message.content.strip()
-        print(f"Variable dictionary from LLM: {result}")
-        if task_type == 'ML':
-            return ml_analysis(result, data)
-        elif task_type == 'ECON':
-            return econ_analysis(result, data)
+    response = client.chat.completions.create(
+    model="deepseek-chat",  # 或使用其他合适的模型
+    messages=[
+        {
+            "role": "system", 
+            "content": f"""
+                你是一个数据分析专家，下面是数据的内容，列名为：{columns}，数据行为：{rows}。
+                用户将提供与数据分析相关的需求，
+                请严格按照以下格式返回一个单行 JSON 字符串，确保没有换行符（\\n）和额外空格： 
+                {{"predictor": "因变量", "features": ["自变量1", "自变量2", ...]}}。
+                不要在字典内加入任何额外的换行符或空格。
+                仅返回字典内容，不需要任何注释、解释或其他多余内容。
+            """
+        },
+        {
+            "role": "user", 
+            "content": f"用户的分析需求是：{text}。请根据这些需求生成相应的变量字典。如果是回归分析类任务，请也把控制变量的一并输出到字典中，解释变量在前，控制变量在后。"
+        }
+    ],
+    temperature=0.1,
+    max_tokens=2500  # 增加 token 以确保生成足够多的 SQL 查询
+    )
 
-    if task_type == 'TEXT':
-        # 纯文字分析任务（描述性分析）
-        response = client.chat.completions.create(
-            model="deepseek-chat",  # 或使用其他合适的模型
-            messages=[
-                {
-                    "role": "system", 
-                    "content": f"""
-                        你是一个数据分析专家，下面是数据的内容，列名为：{columns}，数据行为：{rows}。
-                        请根据这些需求进行描述性分析，并提供结果。
-                        分析的结果需为文本，不包含任何代码、数学公式，只需要对数据进行简单描述。
-                    """
-                },
-                {
-                    "role": "user", 
-                    "content": f"用户的分析需求是：{text}。请根据这些需求生成相应的分析结果，2000字以内。"
-                }
-            ],
-            temperature=0.1,
-            max_tokens=2500  # 增加 token 以确保生成足够的分析结果
-        )
+    result = response.choices[0].message.content.strip()
+    return result
+
+   
         
-        result = response.choices[0].message.content.strip()
-        return result
     
 
 def ml_analysis(label_dict: str, data):
@@ -231,15 +210,14 @@ def ml_analysis(label_dict: str, data):
     test_data = df.iloc[split_point:]
 
     # 训练模型
-    predictor = TabularPredictor(label=target).fit(train_data)
+    predictor = TabularPredictor(label=target).fit(train_data,verbosity=0)
 
     # 进行预测
     # predictions = predictor.predict(test_data)
-    print(test_data)
     # 计算模型的性能（如果需要）
     performance = predictor.evaluate(test_data)
-
-    return performance
+    performance_str = "\n".join([f"{key}: {value}" for key, value in performance.items()])
+    return performance_str
 
 
 def econ_analysis(label_dict: str, data):

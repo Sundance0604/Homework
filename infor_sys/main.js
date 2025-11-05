@@ -175,30 +175,9 @@ document.getElementById("exportBtn").onclick = () => {
   a.click();
   URL.revokeObjectURL(url);
 };
-// ========== LLM 查询结果专属渲染 ==========
-const llmSQLDiv = document.getElementById("llmQuerySQL");
-const llmResultDiv = document.getElementById("llmResultContainer");
-
-// 渲染下方 LLM 查询返回的表格
-function renderLLMTable(columns, rows) {
-  if (!columns?.length) {
-    llmResultDiv.innerHTML = "<em>（无查询结果）</em>";
-    return;
-  }
-  let html = "<table><thead><tr>";
-  columns.forEach((c) => (html += `<th>${escapeHTML(c)}</th>`));
-  html += "</tr></thead><tbody>";
-  rows.forEach((r) => {
-    html +=
-      "<tr>" +
-      r.map((v) => `<td>${escapeHTML(v == null ? "" : v)}</td>`).join("") +
-      "</tr>";
-  });
-  html += "</tbody></table>";
-  llmResultDiv.innerHTML = html;
-}
 
 // ========== 调用 LLM 查询 ==========
+
 document.getElementById("analyzeBtn").onclick = async () => {
   const prompt = document.getElementById("prompt").value?.trim() || "";
   if (!prompt) {
@@ -231,6 +210,62 @@ document.getElementById("analyzeBtn").onclick = async () => {
   }
 };
 
+// 新的按钮事件处理
+document.getElementById("dataScienceAnalyzeBtn").onclick = async () => {
+  const prompt = document.getElementById("dataSciencePrompt").value?.trim() || "";
+  if (!prompt) {
+    document.getElementById("dataScienceAnalysisResult").textContent = "请输入数据科学分析指令。";
+    return;
+  }
+
+  document.getElementById("dataScienceAnalysisResult").textContent = "正在生成 SQL 并查询…";
+
+  // 调用 getResult_ForAnalysis 生成 SQL 查询
+  let sqlQuery;
+  try {
+    const response = await fetch(`${API_BASE}/nlq_query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, limit: 100 }),
+    });
+    const data = await response.json();
+
+    if (data.error) {
+      document.getElementById("dataScienceAnalysisResult").textContent = `❌ 失败：${data.error}`;
+      return;
+    }
+
+    sqlQuery = data.sql;
+    document.getElementById("dataScienceAnalysisResult").textContent = "✅ 查询成功";
+
+    // 获取后端返回的数据
+    const tableData = await fetch(`${API_BASE}/nlq_query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, limit: 100 }),
+    }).then(res => res.json());
+
+    // 调用 getAnalysis 执行数据分析
+    const analysisResult = await getAnalysis(prompt, tableData);
+
+    // 输出分析结果
+    document.getElementById("dataScienceAnalysisResult").textContent = analysisResult;
+  } catch (error) {
+    document.getElementById("dataScienceAnalysisResult").textContent = `请求失败：${error.message}`;
+  }
+};
+
+// 调用 getAnalysis 函数进行数据分析
+async function getAnalysis(prompt, data) {
+  const response = await fetch(`${API_BASE}/data_science_analysis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, data }),
+  });
+  const result = await response.json();
+  console.log("Analysis result:", result);  // 查看后端返回的数据
+  return result.result || "没有分析结果";
+}
 
 // ========== 初始化 ==========
 window.onload = () => {

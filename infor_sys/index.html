@@ -11,7 +11,7 @@
       <h1>SQLite 数据浏览 & LLM 分析面板</h1>
       <div>
         <label>
-          <input type="checkbox" id="demoMode" checked />
+          <input type="checkbox" id="demoMode" />
           演示模式（无后端/LLM）
         </label>
         <button id="reloadBtn">重新加载</button>
@@ -35,15 +35,28 @@
 
       <section class="analysis">
         <h2>分析设置</h2>
-        <textarea id="prompt" rows="6">
-请根据数据做一个简要分析，总结关键指标、异常值、和可能的业务含义。
-        </textarea>
+        <textarea id="prompt" rows="6">请根据数据做一个简要分析，总结关键指标、异常值、和可能的业务含义。</textarea>
         <button id="analyzeBtn">调用 LLM 分析</button>
         <pre id="analysisResult">暂无结果</pre>
       </section>
+      <!-- 新的按钮和输入框，用于进行数据科学分析 -->
+      <section class="data-science-analysis">
+        <h2>进行数据科学分析</h2>
+        <textarea id="dataSciencePrompt" rows="6" placeholder="请输入数据科学分析指令..."></textarea>
+        <button id="dataScienceAnalyzeBtn">进行数据科学分析</button>
+        <pre id="dataScienceAnalysisResult">暂无结果</pre>
+      </section>
+
+      <section class="llm-results">
+        <h2>查询结果</h2>
+        <div id="llmQuerySQL" style="white-space: pre-wrap; color: #555;"></div>
+        <div id="llmResultContainer"></div>
+      </section>
+
     </main>
   </div>
 
+  <!-- 一定要放在 body 末尾，保证上面元素已渲染 -->
   <script src="main.js"></script>
 </body>
 </html>
